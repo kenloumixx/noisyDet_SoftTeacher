@@ -18,6 +18,8 @@ from mmdet.utils import collect_env
 from ssod.apis import get_root_logger, set_random_seed, train_detector
 from ssod.datasets import build_dataset
 from ssod.utils import patch_config
+import torch
+from torch.multiprocessing import Value
 
 
 def parse_args():
@@ -126,7 +128,7 @@ def main():
     if args.launcher == "none":
         distributed = False
     else:
-        distributed = True
+        distributed = True          # True
         init_dist(args.launcher, **cfg.dist_params)
         # re-set gpu_ids with distributed training mode
         _, world_size = get_dist_info()
@@ -169,7 +171,7 @@ def main():
         cfg.model, train_cfg=cfg.get("train_cfg"), test_cfg=cfg.get("test_cfg")
     )
     model.init_weights()
-
+        
     datasets = [build_dataset(cfg.data.train)]
     if len(cfg.workflow) == 2:
         val_dataset = copy.deepcopy(cfg.data.val)
@@ -183,16 +185,24 @@ def main():
         )
     # add an attribute for visualization convenience
     model.CLASSES = datasets[0].CLASSES
+
+    # flag = Value('d', -1)
+
+    # args_tuple = tuple([model, datasets, cfg, distributed, (not args.no_validate), timestamp, meta, flag])
+    # num_gpu = 8
+    # torch.multiprocessing.spawn(fn=train_detector, nprocs=num_gpu, args=args_tuple)
+
+
     train_detector(
-        model,
-        datasets,
-        cfg,
+        model=model,
+        dataset=datasets,
+        cfg=cfg,
         distributed=distributed,
         validate=(not args.no_validate),
         timestamp=timestamp,
         meta=meta,
+        # flag=flag
     )
-
 
 if __name__ == "__main__":
     main()

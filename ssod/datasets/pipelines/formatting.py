@@ -43,7 +43,11 @@ class PseudoSamples(object):
         self.with_seg = with_seg
         self.fill_value = fill_value
 
+
     def __call__(self, results):
+        results['gmm_labels'] = False
+        results['box_ids'] = False
+
         if self.with_bbox:
             results["gt_bboxes"] = np.zeros((0, 4))
             results["gt_labels"] = np.zeros((0,))

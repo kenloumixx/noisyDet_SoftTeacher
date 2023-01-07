@@ -22,11 +22,21 @@ class SoftTeacher(MultiSteamDetector):
             self.freeze("teacher")
             self.unsup_weight = self.train_cfg.unsup_weight
 
+    # train
+    def forward_gmm(self, img, img_metas, **kwargs):
+        return super().forward_gmm(img, img_metas, **kwargs)
+
+
+    # train
     def forward_train(self, img, img_metas, **kwargs):
         super().forward_train(img, img_metas, **kwargs)
         kwargs.update({"img": img})
         kwargs.update({"img_metas": img_metas})
         kwargs.update({"tag": [meta["tag"] for meta in img_metas]})
+        
+        if 'rescale' in kwargs.keys():  
+            kwargs.pop('rescale')       # TODO: rescale 앞에서 다시 살려주기!
+        
         data_groups = dict_split(kwargs, "tag")
         for _, v in data_groups.items():
             v.pop("tag")
@@ -278,7 +288,7 @@ class SoftTeacher(MultiSteamDetector):
             {"rcnn_reg_gt_num": sum([len(bbox) for bbox in gt_bboxes]) / len(gt_bboxes)}
         )
         loss_bbox = self.student.roi_head.forward_train(
-            feat, img_metas, proposal_list, gt_bboxes, gt_labels, **kwargs
+            feat, img_metas, proposal_list, gt_bboxes, gt_labels, gmm_labels=None, **kwargs
         )["loss_bbox"]
         if len(gt_bboxes[0]) > 0:
             log_image_with_boxes(

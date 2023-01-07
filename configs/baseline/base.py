@@ -57,7 +57,7 @@ train_pipeline = [
     dict(type="DefaultFormatBundle"),
     dict(
         type="Collect",
-        keys=["img", "gt_bboxes", "gt_labels"],
+        keys=["img", "gt_bboxes", "gt_labels", "gmm_labels"],
         meta_keys=(
             "filename",
             "ori_shape",
@@ -69,6 +69,11 @@ train_pipeline = [
         ),
     ),
 ]
+
+
+
+
+
 
 test_pipeline = [
     dict(type="LoadImageFromFile"),
@@ -98,8 +103,9 @@ data = dict(
 optimizer = dict(type="SGD", lr=0.01, momentum=0.9, weight_decay=0.0001)
 lr_config = dict(step=[120000, 160000])
 runner = dict(_delete_=True, type="IterBasedRunner", max_iters=180000)
-checkpoint_config = dict(by_epoch=False, interval=4000, max_keep_ckpts=10)
-evaluation = dict(interval=4000)
+checkpoint_config = dict(by_epoch=False, interval=10000000, max_keep_ckpts=10)
+evaluation = dict(interval=10000000)
+
 
 fp16 = dict(loss_scale="dynamic")
 

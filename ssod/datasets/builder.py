@@ -36,7 +36,6 @@ def build_sampler(cfg, dist=False, group=False, default_args=None):
         cfg.update(type=sampler_type)
     else:
         cfg = dict(type=sampler_type)
-
     return build_from_cfg(cfg, SAMPLERS, default_args)
 
 
@@ -88,7 +87,7 @@ def build_dataloader(
         worker_init_fn=init_fn,
         **kwargs,
     )
-    return data_loader
+    return data_loader  # data loader에 dataset 들어가있음
 
 
 def collate(batch, samples_per_gpu=1, flatten=False):
