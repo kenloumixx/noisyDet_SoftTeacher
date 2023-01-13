@@ -45,8 +45,13 @@ class PseudoSamples(object):
 
 
     def __call__(self, results):
-        results['gmm_labels'] = False
-        results['box_ids'] = False
+        # results keys dict_keys(['img_info', 'ann_info', 'img_prefix', 'seg_prefix', 'proposal_file', 'bbox_fields', 'mask_fields', 'seg_fields', 'filename', 'ori_filename', 'img', 'img_shape', 'ori_shape', 'img_fields'])
+        # print(f'ann_info {results["ann_info"].keys()}') # (['bboxes', 'labels', 'bboxes_ignore', 'masks', 'seg_map', 'gmm_labels', 'box_ids'])
+        # print(f'img_info {results["img_info"].keys()}') # (['license', 'file_name', 'coco_url', 'height', 'width', 'date_captured', 'flickr_url', 'id', 'filename'])
+
+        # print(f'box_ids {results["ann_info"]["box_ids"]} | gmm_labels {results["ann_info"]["gmm_labels"]} | labels {results["ann_info"]["labels"]}') # (['bboxes', 'labels', 'bboxes_ignore', 'masks', 'seg_map', 'gmm_labels', 'box_ids'])
+        results['box_ids'] = results["ann_info"]["box_ids"]
+        results['gmm_labels'] = results["ann_info"]["gmm_labels"]      # 처음 validation할 때는 없으니까 ㅇㅈ. 근데 train할 때는 있어야 함 ㅎㅎ
 
         if self.with_bbox:
             results["gt_bboxes"] = np.zeros((0, 4))

@@ -20,7 +20,7 @@ from ssod.datasets import build_dataset
 from ssod.utils import patch_config
 import torch
 from torch.multiprocessing import Value
-
+from threading import Event
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train a detector")
@@ -185,14 +185,13 @@ def main():
         )
     # add an attribute for visualization convenience
     model.CLASSES = datasets[0].CLASSES
-
     # flag = Value('d', -1)
 
     # args_tuple = tuple([model, datasets, cfg, distributed, (not args.no_validate), timestamp, meta, flag])
     # num_gpu = 8
     # torch.multiprocessing.spawn(fn=train_detector, nprocs=num_gpu, args=args_tuple)
 
-
+    
     train_detector(
         model=model,
         dataset=datasets,

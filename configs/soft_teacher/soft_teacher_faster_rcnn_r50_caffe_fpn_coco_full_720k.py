@@ -36,5 +36,5 @@ semi_wrapper = dict(
     )
 )
 
-lr_config = dict(step=[120000 * 4, 160000 * 4])
-runner = dict(_delete_=True, type="IterBasedRunner", max_iters=180000 * 4)
+lr_config = dict(step=[12000 * 4, 16000 * 4])
+runner = dict(_delete_=True, type="IterBasedRunner", max_iters=18000 * 4)

@@ -44,7 +44,7 @@ def set_random_seed(seed, deterministic=False):
 
 
 def train_detector(
-    model, dataset, cfg=None, distributed=False, validate=False, timestamp=None, meta=None, flag=None,
+    model, dataset, cfg=None, distributed=False, validate=False, timestamp=None, meta=None, flag=None
 ):
     logger = get_root_logger(log_level=cfg.log_level)
 
@@ -67,7 +67,6 @@ def train_detector(
                 f"{cfg.data.imgs_per_gpu} in this experiments"
             )
         cfg.data.samples_per_gpu = cfg.data.imgs_per_gpu
-
 
     # put model on gpus
     if distributed:

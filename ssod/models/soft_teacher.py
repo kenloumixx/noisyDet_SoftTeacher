@@ -9,6 +9,7 @@ from ssod.utils import log_image_with_boxes, log_every_n
 from .multi_stream_detector import MultiSteamDetector
 from .utils import Transform2D, filter_invalid
 
+from mmcv.runner import get_dist_info
 
 @DETECTORS.register_module()
 class SoftTeacher(MultiSteamDetector):
@@ -29,7 +30,9 @@ class SoftTeacher(MultiSteamDetector):
 
     # train
     def forward_train(self, img, img_metas, **kwargs):
+        rank, _ = get_dist_info()
         super().forward_train(img, img_metas, **kwargs)
+
         kwargs.update({"img": img})
         kwargs.update({"img_metas": img_metas})
         kwargs.update({"tag": [meta["tag"] for meta in img_metas]})
@@ -51,13 +54,13 @@ class SoftTeacher(MultiSteamDetector):
             log_every_n(
                 {"sup_gt_num": sum([len(bbox) for bbox in gt_bboxes]) / len(gt_bboxes)}
             )
-            sup_loss = self.student.forward_train(**data_groups["sup"])
+            sup_loss = self.student.forward_train(**data_groups["sup"], unsup=False)   # mmdet.two_stage.forward_train.py  # 여기에 gmm label 반영하기 - 앞에 4개만 들어가도록
             sup_loss = {"sup_" + k: v for k, v in sup_loss.items()}
             loss.update(**sup_loss)
         if "unsup_student" in data_groups:
             unsup_loss = weighted_loss(
                 self.foward_unsup_train(
-                    data_groups["unsup_teacher"], data_groups["unsup_student"]
+                    data_groups["unsup_teacher"], data_groups["unsup_student"],
                 ),
                 weight=self.unsup_weight,
             )
@@ -70,6 +73,7 @@ class SoftTeacher(MultiSteamDetector):
         # sort the teacher and student input to avoid some bugs
         tnames = [meta["filename"] for meta in teacher_data["img_metas"]]
         snames = [meta["filename"] for meta in student_data["img_metas"]]
+        gmm_labels = [gmm_label for gmm_label in student_data["gmm_labels"]]
         tidx = [tnames.index(name) for name in snames]
         with torch.no_grad():
             teacher_info = self.extract_teacher_info(
@@ -84,9 +88,9 @@ class SoftTeacher(MultiSteamDetector):
             )
         student_info = self.extract_student_info(**student_data)
 
-        return self.compute_pseudo_label_loss(student_info, teacher_info)
+        return self.compute_pseudo_label_loss(student_info, teacher_info, gmm_labels)
 
-    def compute_pseudo_label_loss(self, student_info, teacher_info):
+    def compute_pseudo_label_loss(self, student_info, teacher_info, gmm_labels):
         M = self._get_trans_mat(
             teacher_info["transform_matrix"], student_info["transform_matrix"]
         )
@@ -104,7 +108,7 @@ class SoftTeacher(MultiSteamDetector):
             student_info["img_metas"],
             student_info=student_info,
         )
-        loss.update(rpn_loss)
+        loss.update(rpn_loss)   # 여기는 rpn loss update하는 부분이라 일단 무시!
         if proposal_list is not None:
             student_info["proposals"] = proposal_list
         if self.train_cfg.use_teacher_proposal:
@@ -116,6 +120,7 @@ class SoftTeacher(MultiSteamDetector):
         else:
             proposals = student_info["proposals"]
 
+        # 여기서 해당 bbox들에 대한 gmm label을 가져와서, 그중에 threshold 넘는 애들만 반영하기
         loss.update(
             self.unsup_rcnn_cls_loss(
                 student_info["backbone_feature"],
@@ -128,6 +133,7 @@ class SoftTeacher(MultiSteamDetector):
                 teacher_info["img_metas"],
                 teacher_info["backbone_feature"],
                 student_info=student_info,
+                gmm_labels=gmm_labels,
             )
         )
         loss.update(
@@ -138,6 +144,7 @@ class SoftTeacher(MultiSteamDetector):
                 pseudo_bboxes,
                 pseudo_labels,
                 student_info=student_info,
+                gmm_labels=gmm_labels,
             )
         )
         return loss
@@ -200,6 +207,7 @@ class SoftTeacher(MultiSteamDetector):
         student_transMat,
         teacher_img_metas,
         teacher_feat,
+        gmm_labels,
         student_info=None,
         **kwargs,
     ):
@@ -223,7 +231,7 @@ class SoftTeacher(MultiSteamDetector):
         rois = bbox2roi(selected_bboxes)
         bbox_results = self.student.roi_head._bbox_forward(feat, rois)
         bbox_targets = self.student.roi_head.bbox_head.get_targets(
-            sampling_results, gt_bboxes, gt_labels, self.student.train_cfg.rcnn
+            sampling_results, gt_bboxes, gt_labels, self.student.train_cfg.rcnn, gmm_labels=gmm_labels, unsup=True
         )
         M = self._get_trans_mat(student_transMat, teacher_transMat)
         aligned_proposals = self._transform_bbox(
@@ -274,6 +282,7 @@ class SoftTeacher(MultiSteamDetector):
         proposal_list,
         pseudo_bboxes,
         pseudo_labels,
+        gmm_labels,
         student_info=None,
         **kwargs,
     ):
@@ -288,7 +297,7 @@ class SoftTeacher(MultiSteamDetector):
             {"rcnn_reg_gt_num": sum([len(bbox) for bbox in gt_bboxes]) / len(gt_bboxes)}
         )
         loss_bbox = self.student.roi_head.forward_train(
-            feat, img_metas, proposal_list, gt_bboxes, gt_labels, gmm_labels=None, **kwargs
+            feat, img_metas, proposal_list, gt_bboxes, gt_labels, gmm_labels=gmm_labels, unsup=True, **kwargs
         )["loss_bbox"]
         if len(gt_bboxes[0]) > 0:
             log_image_with_boxes(
