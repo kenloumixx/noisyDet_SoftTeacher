@@ -396,7 +396,7 @@ data = dict(
     val=dict(pipeline=test_pipeline),
     gmm_val=dict(pipeline=gmm_pipeline),
     gmm_coco=dict(type='GMMCOCO',
-                    samples_per_gpu=8,
+                    samples_per_gpu=64,
                     workers_per_gpu=8,
                     pipeline=gmmcoco_pipeline),
     test=dict(pipeline=test_pipeline),
@@ -440,7 +440,7 @@ optimizer = dict(type="SGD", lr=0.01, momentum=0.9, weight_decay=0.0001)
 splitnet_optimizer = dict(type="AdamW", lr=0.01, momentum=0.9, weight_decay=0.0001)
 lr_config = dict(step=[120000, 160000])
 runner = dict(_delete_=True, type="IterBasedRunner", max_iters=180000)
-checkpoint_config = dict(by_epoch=False, interval=1, max_keep_ckpts=20)
+checkpoint_config = dict(by_epoch=True, interval=1, max_keep_ckpts=20)
 
 fp16 = dict(loss_scale="dynamic")
 
