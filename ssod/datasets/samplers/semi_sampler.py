@@ -109,7 +109,7 @@ class DistributedGroupSemiBalanceSampler(Sampler):
                 # split into
                 total_indice = []
                 batch_idx = 0
-                # pdb.set_trace()
+                # )
                 while batch_idx < self.epoch_length[i] * self.num_replicas:
                     ratio = [x / sum(self.sample_ratio) for x in self.sample_ratio]
                     if self.by_prob:

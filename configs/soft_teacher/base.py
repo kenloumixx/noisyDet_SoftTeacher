@@ -440,7 +440,7 @@ optimizer = dict(type="SGD", lr=0.01, momentum=0.9, weight_decay=0.0001)
 splitnet_optimizer = dict(type="AdamW", lr=0.01, momentum=0.9, weight_decay=0.0001)
 lr_config = dict(step=[12000, 16000])
 runner = dict(_delete_=True, type="IterBasedRunner", max_iters=18000)
-checkpoint_config = dict(by_epoch=False, interval=4000, max_keep_ckpts=20)
+checkpoint_config = dict(by_epoch=False, interval=2000, max_keep_ckpts=20)
 
 fp16 = dict(loss_scale="dynamic")
 

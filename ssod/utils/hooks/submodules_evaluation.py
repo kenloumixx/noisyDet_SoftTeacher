@@ -181,9 +181,7 @@ class SubModulesDistEvalHook(DistEvalHook):
         key_scores = []
         from mmdet.apis import multi_gpu_test
 
-        for submodule in submodules:    # inference를 teacher로 할건지, student로 할건지
-            if submodule == 'student':
-                break
+        for submodule in submodules:
             # change inference on
             model_ref.inference_on = submodule
             results = multi_gpu_test(
@@ -191,7 +189,7 @@ class SubModulesDistEvalHook(DistEvalHook):
                 self.dataloader,
                 tmpdir=tmpdir,
                 gpu_collect=self.gpu_collect,
-            )   # 여기서 eval이 한번 돌아감
+            )
             if runner.rank == 0:
                 key_score = self.evaluate(runner, results, prefix=submodule)
                 if key_score is not None:
