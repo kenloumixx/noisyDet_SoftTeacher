@@ -60,7 +60,7 @@ class SoftTeacher(MultiSteamDetector):
             gmm_labels = data_groups["sup"]["gmm_labels"]
             GMM_GT_idx = data_groups["sup"]["GMM_GT_idx"]
             n_clf = data_groups["sup"]["n_clf"]
-            n_loc = data_groups["sup"]["n_loc"]
+            n_loc = data_groups["sup"]["n_loc"] # True = 1. False = 0 -> noise - 1. clean - 0
 
             assert len(GMM_GT_idx) == len(n_loc)            
             # # TEMP
@@ -85,10 +85,10 @@ class SoftTeacher(MultiSteamDetector):
             for gmm_gt_idx, noise_cls, noise_reg in zip(GMM_GT_idx, n_clf, n_loc):
                 if len(noise_cls) > 0:
                     for gmm_gt, n_cls, n_reg in zip(gmm_gt_idx, noise_cls, noise_reg):
-                        ids = int(str(abs(1-n_cls.item()))+str(abs(1-n_reg.item())), 2)    # 0부터 차례대로 CC, CN, NC, NN  0 = FALSE = noise가 없다는 뜻 = CLEAN
+                        ids = int(str(n_cls.item())+str(n_reg.item()), 2)    # 0부터 차례대로 CC, CN, NC, NN  0 = FALSE = noise가 없다는 뜻 = CLEAN
                         GT_sup_list[ids] += 1       #  비율 넣을 때
                         
-                        decimal_ids = int(str(abs(1-n_cls.item()))+str(abs(1-n_reg.item())))
+                        decimal_ids = int(str(n_cls.item())+str(n_reg.item()))
                         if gmm_gt.item() == decimal_ids:   # CC, CN, NC, NN 처리  - strict 비교 
                             gmm_gt_match_list[ids] += 1
                         elif '9' in str(gmm_gt.item()): # X가 들어가있음 - 비벼볼 수는 있음

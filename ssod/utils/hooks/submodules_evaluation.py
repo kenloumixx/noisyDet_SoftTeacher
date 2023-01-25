@@ -373,7 +373,7 @@ class GMMSubModulesDistEvalHook(GMMDistEvalHook):
         # 1. submodules 어떤거 들어오는지 체크 
         # 2. results가 각 bbox별로 들어오는데, 어떻게 넣을지 체크
         for submodule in submodules:
-            if submodule=='teacher':    # student로 뽑기    # 아 그러네.. teacher는 ema로 쫌쫌따리 받고 있었을 텐데.. teacher는 0.98의 비율로 천천히 움직임..
+            if submodule=='student':    # 나중에는 teacher가 student보다 성능 더 좋아짐!!
                 continue
             # change inference on
             model_ref.inference_on = submodule

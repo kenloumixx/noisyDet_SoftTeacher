@@ -12,7 +12,7 @@ data = dict(
             
             # ann_file="/home/cvlab11/project/noisyDet/tmptest/mmdetection/data/coco/annotations/instances_val2017.json",
             # img_prefix="/home/cvlab11/project/noisyDet/tmptest/mmdetection/data/coco/val2017",
-            ann_file="/home/cvlab11/project/noisyDet/data/coco/annotations/newmixnoisy10_instances_train2017.json",
+            ann_file="/home/cvlab11/project/noisyDet/tmp/newmixnoisy10key_instances_train2017.json",
             img_prefix="/home/cvlab11/project/noisyDet/tmptest/mmdetection/data/coco/train2017/",
             
             # ann_file="/home/cvlab11/project/noisyDet/data/coco/annotations/newmixnoisy10_instances_train2017.json",
@@ -27,7 +27,9 @@ data = dict(
             
             # ann_file="/home/cvlab11/project/noisyDet/tmptest/mmdetection/data/coco/annotations/instances_val2017.json",
             # img_prefix="/home/cvlab11/project/noisyDet/tmptest/mmdetection/data/coco/val2017",
-            ann_file="/home/cvlab11/project/noisyDet/data/coco/annotations/newmixnoisy10_instances_train2017.json",
+
+            # ann_file="/home/cvlab11/project/noisyDet/data/coco/annotations/newmixnoisy10_instances_train2017.json",
+            ann_file="/home/cvlab11/project/noisyDet/tmp/newmixnoisy10key_instances_train2017.json",
             img_prefix="/home/cvlab11/project/noisyDet/tmptest/mmdetection/data/coco/train2017/",
 
         ),
