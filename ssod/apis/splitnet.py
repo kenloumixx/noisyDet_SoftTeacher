@@ -14,6 +14,7 @@ import torch.distributed as dist
 
 def one_hot(targets, nClass):
     logits = torch.zeros(targets.size(0), nClass).cuda()
+    # logits = torch.zeros(targets.size(0), nClass)
     return logits.scatter_(1, targets.unsqueeze(1), 1)
     # scatter_(): Expected dtype int64 for index. 
 
@@ -30,6 +31,7 @@ def binarize(T, nb_classes):
         T, classes=range(0, nb_classes)
     )
     T = torch.FloatTensor(T).cuda()
+    # T = torch.FloatTensor(T)
     return T
 
 

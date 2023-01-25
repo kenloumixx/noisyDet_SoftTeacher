@@ -52,6 +52,9 @@ class PseudoSamples(object):
         # print(f'box_ids {results["ann_info"]["box_ids"]} | gmm_labels {results["ann_info"]["gmm_labels"]} | labels {results["ann_info"]["labels"]}') # (['bboxes', 'labels', 'bboxes_ignore', 'masks', 'seg_map', 'gmm_labels', 'box_ids'])
         results['box_ids'] = results["ann_info"]["box_ids"]
         results['gmm_labels'] = results["ann_info"]["gmm_labels"]      # 처음 validation할 때는 없으니까 ㅇㅈ. 근데 train할 때는 있어야 함 ㅎㅎ
+        results['n_loc'] = results["ann_info"]["n_loc"]      # 처음 validation할 때는 없으니까 ㅇㅈ. 근데 train할 때는 있어야 함 ㅎㅎ
+        results['n_clf'] = results["ann_info"]["n_clf"]      # 처음 validation할 때는 없으니까 ㅇㅈ. 근데 train할 때는 있어야 함 ㅎㅎ
+        results['GMM_GT_idx'] = results["ann_info"]["GMM_GT_idx"]      # 처음 validation할 때는 없으니까 ㅇㅈ. 근데 train할 때는 있어야 함 ㅎㅎ
 
         if self.with_bbox:
             results["gt_bboxes"] = np.zeros((0, 4))

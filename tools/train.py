@@ -1,6 +1,10 @@
+import os
+os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 import argparse
 import copy
-import os
+# import os
 import os.path as osp
 import time
 import warnings
@@ -21,6 +25,7 @@ from ssod.utils import patch_config
 import torch
 from torch.multiprocessing import Value
 from threading import Event
+import os 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train a detector")
@@ -93,10 +98,12 @@ def parse_args():
 
 
 def main():
+    os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+
     args = parse_args()
 
     cfg = Config.fromfile(args.config)
-    if args.cfg_options is not None:
+    if args.cfg_options is not None:    
         cfg.merge_from_dict(args.cfg_options)
     # import modules from string list.
     if cfg.get("custom_imports", None):

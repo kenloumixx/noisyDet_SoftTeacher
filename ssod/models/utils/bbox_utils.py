@@ -238,7 +238,7 @@ class Transform2D:
 def filter_invalid(bbox, label=None, score=None, mask=None, thr=0.0, min_size=0):
     if score is not None:
         valid = score > thr
-        bbox = bbox[valid]
+        bbox = bbox[valid]  # 아하.. valid한거 하나만 가져오는 구나.. 
         if label is not None:
             label = label[valid]
         if mask is not None:
@@ -246,10 +246,13 @@ def filter_invalid(bbox, label=None, score=None, mask=None, thr=0.0, min_size=0)
     if min_size is not None:
         bw = bbox[:, 2] - bbox[:, 0]
         bh = bbox[:, 3] - bbox[:, 1]
-        valid = (bw > min_size) & (bh > min_size)
-        bbox = bbox[valid]
+        valid_2 = (bw > min_size) & (bh > min_size)
+        bbox = bbox[valid_2]
         if label is not None:
-            label = label[valid]
+            label = label[valid_2]
         if mask is not None:
-            mask = BitmapMasks(mask.masks[valid.cpu().numpy()], mask.height, mask.width)
-    return bbox, label, mask
+            mask = BitmapMasks(mask.masks[valid_2.cpu().numpy()], mask.height, mask.width)
+    return bbox, label, mask, valid, valid_2
+
+
+

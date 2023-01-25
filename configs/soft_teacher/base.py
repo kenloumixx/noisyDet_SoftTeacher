@@ -58,7 +58,7 @@ train_pipeline = [
     dict(type="DefaultFormatBundle"),
     dict(
         type="Collect",
-        keys=["img", "gt_bboxes", "gt_labels", "gmm_labels", "box_ids"],
+        keys=["img", "gt_bboxes", "gt_labels", "gmm_labels", "box_ids", "n_loc", "n_clf", "GMM_GT_idx"],
         meta_keys=(
             "filename",
             "ori_shape",
@@ -131,7 +131,7 @@ strong_pipeline = [
     dict(type="DefaultFormatBundle"),
     dict(
         type="Collect",
-        keys=["img", "gt_bboxes", "gt_labels", "gmm_labels", "box_ids"],
+        keys=["img", "gt_bboxes", "gt_labels", "gmm_labels", "box_ids", "n_loc", "n_clf", "GMM_GT_idx"],
         meta_keys=(
             "filename",
             "ori_shape",
@@ -164,7 +164,7 @@ weak_pipeline = [
     dict(type="DefaultFormatBundle"),
     dict(
         type="Collect",
-        keys=["img", "gt_bboxes", "gt_labels", "gmm_labels", "box_ids"],
+        keys=["img", "gt_bboxes", "gt_labels", "gmm_labels", "box_ids", "n_loc", "n_clf", "GMM_GT_idx"],
         meta_keys=(
             "filename",
             "ori_shape",
@@ -179,9 +179,9 @@ weak_pipeline = [
 ]
 unsup_pipeline = [
     dict(type="LoadImageFromFile"),
-    # dict(type="LoadAnnotations", with_bbox=True),
+    dict(type="LoadAnnotations", with_bbox=True),
     # generate fake labels for data format compatibility
-    dict(type="PseudoSamples", with_bbox=True),
+    # dict(type="PseudoSamples", with_bbox=True),
     dict(
         type="MultiBranch", unsup_student=strong_pipeline, unsup_teacher=weak_pipeline
     ),
@@ -390,14 +390,14 @@ data = dict(
             ann_file=None,
             img_prefix=None,
             pipeline=unsup_pipeline,
-            filter_empty_gt=False,
+            filter_empty_gt=True,
         ),
     ),
     val=dict(pipeline=test_pipeline),
     gmm_val=dict(pipeline=gmm_pipeline),
     gmm_coco=dict(type='GMMCOCO',
                     samples_per_gpu=64,
-                    workers_per_gpu=8,
+                    workers_per_gpu=2,
                     pipeline=gmmcoco_pipeline),
     test=dict(pipeline=test_pipeline),
     sampler=dict(
@@ -433,15 +433,15 @@ custom_hooks = [
     dict(type="WeightSummary"),
     dict(type="MeanTeacher", momentum=0.999, interval=1, warm_up=0),    #
 ]
-evaluation = dict(type="SubModulesDistEvalHook", interval=4000)
+evaluation = dict(type="SubModulesDistEvalHook", interval=500)  # 처음에 100씩 봐보자
 # evaluation = dict(type="SubModulesDistEvalHook", by_epoch=True, interval=1, metric='bbox')
 gmm_evaluation = dict(type="GMMSubModulesDistEvalHook", by_epoch=True, interval = 10000000, metric='bbox')
 optimizer = dict(type="SGD", lr=0.01, momentum=0.9, weight_decay=0.0001)
 splitnet_optimizer = dict(type="AdamW", lr=0.01, momentum=0.9, weight_decay=0.0001)
-lr_config = dict(step=[12000, 16000])
+lr_config = dict(step=[36000, 45000])
 runner = dict(_delete_=True, type="IterBasedRunner", max_iters=18000)
-checkpoint_config = dict(by_epoch=False, interval=2000, max_keep_ckpts=20)
-
+# checkpoint_config = dict(by_epoch=False, interval=735, max_keep_ckpts=100000000)    # 대략 30분마다 weight 저장
+checkpoint_config = dict(by_epoch=False, interval=735, max_keep_ckpts=100000000)    # 대략 30분마다 weight 저장
 fp16 = dict(loss_scale="dynamic")
 
 log_config = dict(

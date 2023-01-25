@@ -145,7 +145,7 @@ def train_detector(
         val_dataloader = build_dataloader(
             val_dataset,
             samples_per_gpu=val_samples_per_gpu,
-            workers_per_gpu=cfg.data.workers_per_gpu,
+            workers_per_gpu=val_samples_per_gpu,
             dist=distributed,
             shuffle=False,
         )
@@ -180,12 +180,12 @@ def train_detector(
         # cfg.data.gmm_val.img_prefix = cfg.data.val.img_prefix
 
         
-        gmm_val_dataset = build_dataset(cfg.data.gmm_val, dict(test_mode=False))
+        gmm_val_dataset = build_dataset(cfg.data.gmm_val, dict(test_mode=False))        # True, False 차이 뭐지..?
 
         gmm_val_dataloader = build_dataloader(
             gmm_val_dataset,
             samples_per_gpu=val_samples_per_gpu,
-            workers_per_gpu=cfg.data.workers_per_gpu,
+            workers_per_gpu=val_samples_per_gpu,
             dist=distributed,
             shuffle=False,
         )

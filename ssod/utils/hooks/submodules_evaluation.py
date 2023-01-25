@@ -21,6 +21,7 @@ import time
 import warnings
 from datetime import timedelta
 from typing import Callable, Dict, Optional, Tuple, Union, List
+import json
 
 import torch.nn.functional as F
 
@@ -241,30 +242,41 @@ class GMMSubModulesDistEvalHook(GMMDistEvalHook):
         self.gmm = GaussianMixture(n_components=2,max_iter=10,tol=1e-2,reg_covar=5e-4)
         self.history_cls_loss = []
         self.history_bbox_loss = []
-        self.history = [self.history_cls_loss, self.history_bbox_loss]
-
+        
     def gmm_epoch(self, runner):
         """Called after every training iter to evaluate the results."""
         return self._do_evaluate(runner)    # output train data loaders
 
     def push_to_tensor_alternative(self, tensor_list, new_tensor):
-        return torch.cat([tensor_list[1:5], new_tensor.unsqueeze(0)], dim=-1)
+        return torch.stack([tensor_list[1:5], new_tensor.unsqueeze(0)], dim=-1)
 
 
-    def get_CN_label(self, loss, history, cls_idx):
+    def get_CN_label(self, loss, type_idx):
         rank, world_size = get_dist_info()
         min_loss = min(loss).item()
         max_loss = max(loss).item()
-        output_loss = (loss-min_loss)/(max_loss-min_loss)  # <- torch.tensor(5000) 
-
-        if len(history) == 0:
-            input_loss = output_loss.reshape(-1, 1).cpu()
-        elif len(history) == 5:
-            input_loss = self.push_to_tensor_alternative(history, output_loss).mean(0).reshape(-1, 1).cpu()
+        output_loss = (loss-min_loss)/(max_loss-min_loss)  # <- torch.tensor(5000)  # cuda 붙어있음
+        output_loss = output_loss.cpu()
+        
+        if type_idx == 0:            
+            if len(self.history_cls_loss) == 0:
+                input_loss = output_loss.reshape(-1, 1)
+                self.history_cls_loss.append(output_loss)
+            else:
+                if len(self.history_cls_loss) == 5:
+                    self.history_cls_loss = self.history_cls_loss[1:]
+                self.history_cls_loss.append(output_loss)
+                input_loss = torch.mean(torch.stack(list(self.history_cls_loss), dim=-1), dim=-1).reshape(-1, 1)
         else:
-            history.append(loss)
-            input_loss = torch.mean(torch.stack([history, loss], dim=-2)).cpu()
-
+            if len(self.history_bbox_loss) == 0:
+                input_loss = output_loss.reshape(-1, 1)
+                self.history_bbox_loss.append(output_loss)
+            else:
+                if len(self.history_bbox_loss) == 5:
+                    self.history_bbox_loss = self.history_bbox_loss[1:]
+                self.history_bbox_loss.append(output_loss)
+                input_loss = torch.mean(torch.stack(list(self.history_bbox_loss), dim=-1), dim=-1).reshape(-1, 1)
+                
         # numpy를 받는건가..?
         # fit a two-component GMM to the loss
         self.gmm.fit(input_loss)
@@ -274,14 +286,17 @@ class GMMSubModulesDistEvalHook(GMMDistEvalHook):
         # thre = 0.5     # TODO
         # CN_label = torch.from_numpy(prob > thre)     # TODO: pred의 output type 확인하기  
         
-        CN_label = np.ones_like(prob, dtype=np.int64) * (-1)    # TODO: pred의 output type 확인하기  
+        CN_label = np.ones_like(prob, dtype=np.int64) * (9)    # TODO: pred의 output type 확인하기  
         # len(CN_label) = len_bbox_ids
-        
+
+        # dynamic thresold        
         prob_var = np.var(prob)
         prob_mean = np.mean(prob)
-        # dynamic thresold
         gmm_pro_max = 0.5 + 2*(0.25 - prob_var) * (1- prob_mean)
         gmm_pro_min = 0.5 - 2*(0.25 - prob_var) * (prob_mean)
+ 
+        # gmm_pro_max = 0.8 + type_idx * 0.1 
+        # gmm_pro_min = 0.1
         
         # refine
         pred_zero = (prob >= gmm_pro_max)     # clean
@@ -354,10 +369,11 @@ class GMMSubModulesDistEvalHook(GMMDistEvalHook):
             submodules = self.evaluated_modules
         from mmdet.apis import gmm_multi_gpu_test
 
+
         # 1. submodules 어떤거 들어오는지 체크 
         # 2. results가 각 bbox별로 들어오는데, 어떻게 넣을지 체크
         for submodule in submodules:
-            if submodule=='student':
+            if submodule=='teacher':    # student로 뽑기    # 아 그러네.. teacher는 ema로 쫌쫌따리 받고 있었을 텐데.. teacher는 0.98의 비율로 천천히 움직임..
                 continue
             # change inference on
             model_ref.inference_on = submodule
@@ -366,7 +382,7 @@ class GMMSubModulesDistEvalHook(GMMDistEvalHook):
                 self.dataloader,
                 tmpdir=tmpdir,
                 gpu_collect=self.gpu_collect,
-                gmm=True,
+                gmm=True,       # gmm->true - gt bbox roi를 feat에 넣기
             )
 
         bbox_ids = results[0] 
@@ -376,18 +392,59 @@ class GMMSubModulesDistEvalHook(GMMDistEvalHook):
         gt_labels_cls = results[4]
 
         losses = [loss_cls, loss_bbox]  
-        
+    
         rank, world_size = get_dist_info()
         splitnet_data = [bbox_ids, loss_bbox, logits_cls, gt_labels_cls]
-        gmm_original = False
-        # if gmm_original:
-        #     CN_label_list = []
-        #     for type_idx, loss in enumerate(losses):
-        #         CN_label = self.get_CN_label(loss, self.history[type_idx])
-        #         CN_label_list.append(CN_label)
-        #     clean_noise_label = CN_label_list[0] * CN_label_list[1]        
-        # else:
+        
+        # 1. ignore class 
+        '''
+        CN_label_list = []
+        for type_idx, loss in enumerate(losses):
+            CN_label = self.get_CN_label(loss, self.history[type_idx])
+            CN_label_list.append(CN_label)
+        clean_noise_label = CN_label_list[0] * CN_label_list[1]        
         # len_bbox_ids = torch.zeros(len(bbox_ids))
+        '''
+        if runner.start:
+            if os.path.exists("history.json"):
+                with open("history.json", "r") as json_file: 
+                    data = json.load(json_file)
+                self.history_cls_loss = [torch.tensor(cls_l).cpu() for cls_l in data['cls_loss']]
+                self.history_bbox_loss = [torch.tensor(bbox_l).cpu() for bbox_l in data['bbox_loss']]
+                print('\njson file loaded! \n')
+                
+
+        clean_noise_label = torch.ones_like(bbox_ids).long() * (-1)     # label은 training할 때만 들어감!
+        CN_label_list = []
+        label_total_idx_list = []
+        for type_idx, loss in enumerate(losses):
+            CN_label, label_total_idx = self.get_CN_label(loss, type_idx)
+            CN_label_list.append(CN_label)
+            label_total_idx_list.append(label_total_idx)    # C, N, X 중 C/N인 경우에만
+
+        if rank == 0:
+            if ((runner.iter + 1) % 7350 == 0) or ((runner.iter+1) == 2000):
+                # with open("history.json", "w") as json_file: 
+                with open("history.json", "w") as json_file: 
+                    json.dump({'iter': runner.iter+1, 'cls_loss': [cls_l.numpy().tolist() for cls_l in self.history_cls_loss], 'bbox_loss': [bbox_l.numpy().tolist() for bbox_l in self.history_bbox_loss]}, json_file)
+                    print('\njson file dumped! \n')
+                
+        class_label_total_idx = np.intersect1d(label_total_idx_list[0], label_total_idx_list[1])    # cls, reg 둘다 ㅇㅇ 교집합 잘 들어감! -> type : np.ndarray
+        class_ids_for_splitnet_train = np.arange(len(bbox_ids))[class_label_total_idx]  # 얘가 의도에 맞게 잘 들어갔는지 확인해보기 
+
+        class_CN_idx = [int(str(a)+str(b), 2) for a, b in zip(CN_label_list[0][class_label_total_idx], CN_label_list[1][class_label_total_idx])]    # 0부터 차례대로 CC, CN, NC, NN
+
+        # for GMM-GT 
+        GMM_GT_idx = torch.tensor([int(str(a)+str(b)) for a, b in zip(CN_label_list[0], CN_label_list[1])])
+        
+        class_CN_label = torch.tensor(class_CN_idx).to(rank)
+        clean_noise_label[class_label_total_idx] = class_CN_label     # 아.. 여기서 아예 안들어가는구나.. 반영이 안되네.. 등호 기준 좌변과 우변이 다르다.. 
+        splitnet_data.append(clean_noise_label)
+        return splitnet_data, class_ids_for_splitnet_train, GMM_GT_idx  # ids 뽑았으니까 splitnet data for train에서는 이 ids에 맞게 다 넣기!
+
+        
+        '''
+        # 2. class-wise 
         clean_noise_label = torch.ones_like(bbox_ids).long() * (-1)     # label은 training할 때만 들어감!
         class_ids_for_splitnet_train_list = []
         # 아니 이거.. class마다 어떻게 잘 계산해가지고 넣어야할 거 같은디..
@@ -425,3 +482,4 @@ class GMMSubModulesDistEvalHook(GMMDistEvalHook):
 
         splitnet_data.append(clean_noise_label)
         return splitnet_data, class_ids_for_splitnet_train_list  # ids 뽑았으니까 splitnet data for train에서는 이 ids에 맞게 다 넣기!
+        '''
